@@ -415,19 +415,16 @@ polynomials. We refer to this process as serialization and deserialization.
 
 ### Serialize a polynomial base q
 
-This function (referred to as pack_Rq0 below) converts a polynomial into
-a byte string.
+The pack_Rq0 function converts a polynomial into a byte string, and the
+unpack_Rq0 function converts that byte string back into a polynomial.
 
-This function takes the first N-1 coefficients (each a value between 0 and q-1),
+The pack_Rq0 function takes the first N-1 coefficients (each a value between 0 and q-1),
 and expresses each as a log~2~(Q) bit bitstring as a little-endian integer. All N-1
 coefficients are of length log~2~(Q).  Then, it concatenates those N-1 bit strings
 into a long bit string; the result is that bit string parsed into bytes
 (with any trailing bits in the last byte being set to 0).
 
-The inverse function (called) unpack_Rq0 converts that byte string back into a
-polynomial.
-
-It takes the byte string, parses it into N-1 consecutive log~2~(Q) bit strings,
+The unpack_Rq0 function takes the byte string, parses it into N-1 consecutive log~2~(Q) bit strings,
 takes each such bit string as a little-endian integer, and sets the corresponding
 coefficient of the polynomial to that integer. Since all bit strings are of equal
 length, this can be done efficiently. Then, it adds all those N-1 coefficients
@@ -446,11 +443,13 @@ such a polynomial will always be a multiple of x-1.
 
 ### Serialize a ternary polynomial
 
-This function (referred to as pack_S3 below) converts a ternary
-polynomial into a byte string. It works by taking the coefficients in
-groups of 5 and packing each such group into a byte.
+The pack_S3 function converts a ternary polynomial into a byte string, and the
+unpack_S3 function converts that byte string back into a ternary polynomial
+when the polynomial is serialized as part of a private key. The pack_S3 function
+works by taking the coefficients in groups of 5 and packing each such group
+into a byte.
 
-This function takes the N-1 coefficients in sets of 5; it converts the five
+The pack_S3 function takes the N-1 coefficients in sets of 5; it converts the five
 coefficients c0, c1, c2, c3, and c4 into the values 0, 1, or 2. Then, it sums up the
 coefficients as c0 + 3*c1 + 9*c2 + 27*c3 + 81*c4 and then stores that value as
 the next byte in the byte string.
@@ -465,8 +464,32 @@ failure (someone handed us an invalid ciphertext); in that case, the value of
 the hash will end up being ignored. Of course, no matter what the coefficient
 is, this still needs to be done in constant time.
 
-The output of this function will be used only for hashing; hence, there is no
-need for an inverse function.
+When the output of pack_S3 is used only for hashing, there is no need for
+an inverse function. When the polynomial is serialized as part of a private key,
+unpack_S3 converts that byte string back into a ternary polynomial.
+The unpack_S3 function parses each byte as a base-3 value and extracts up to five coefficients,
+starting from the least significant base-3 digit. If the final group is
+incomplete, the missing higher coefficients are treated as zero. The final
+coefficient is set to zero, and the resulting polynomial is reduced modulo
+(3, S).
+
+### Serialize a polynomial in S modulo q
+
+The pack_Sq function converts a polynomial in S modulo q into a byte string,
+and the unpack_Sq function converts that byte string back into a polynomial
+in S modulo q.
+
+The pack_Sq function takes the first N-1 coefficients (each a value between 0 and q-1),
+and expresses each as a log~2~(Q) bit bitstring as a little-endian integer. All N-1
+coefficients are of length log~2~(Q). Then, it concatenates those N-1 bit strings
+into a long bit string; the result is that bit string parsed into bytes
+(with any trailing bits in the last byte being set to 0).
+
+The unpack_Sq function takes the byte string, parses it into N-1 consecutive log~2~(Q) bit strings,
+takes each such bit string as a little-endian integer, and sets the corresponding
+coefficient of the polynomial to that integer. Since all bit strings are of equal
+length, this can be done efficiently. Unlike unpack_Rq0, unpack_Sq sets the
+N-th coefficient to 0.
 
 # NTRU KEM {#ntru_kem}
 
@@ -546,9 +569,10 @@ The recommended strict procedure for `KeyGen` is defined below:
 11. Output a private key with a set of the values (F~3~, F~inv,3~, H~inv~, s)
 12. Dispose of any other intermediate values securely
 
-The public key should be serialized as below:
+These keys should be serialized as below:
 
 - public_key = pack_Rq0(H)
+- private_key = pack_S3(F~3~) || pack_S3(F~inv,3~) || pack_Sq(H~inv~) || s
 
 ## Key Encapsulation
 
@@ -636,9 +660,14 @@ The recommended strict procedure for `Decaps` is defined below:
 11. Compute K2 = SHA3-256(s || C)
 12. If Success, output a secret string with the value of K=K1; otherwise, return K=K2
 
-Related to this procedure, the ciphertext should be deserialized as below:
+Related to this procedure, the ciphertext and the private key should be
+deserialized as below:
 
 - C = unpack_Rq0(ciphertext)
+- F~3~ = unpack_S3(F~3,serialized~)
+- F~inv,3~ = unpack_S3(F~inv,3,serialized~)
+- H~inv~ = unpack_Sq(H~inv,serialized~)
+- s is the final 32 bytes of private_key
 
 
 # NTRU Types {#variants}
