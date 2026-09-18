@@ -449,11 +449,10 @@ when the polynomial is serialized as part of a private key. The pack_S3 function
 works by taking the coefficients in groups of 5 and packing each such group
 into a byte.
 
-The pack_S3 function takes the N-1 coefficients in groups of five. For each
-group, it maps each coefficient c0, c1, c2, c3, and c4 to its representative
-in {0, 1, 2} modulo 3. It then treats these values as base-3 digits, computes
-c0 + 3*c1 + 9*c2 + 27*c3 + 81*c4, and stores the result as the next byte in
-the byte string.
+The pack_S3 function takes the N-1 coefficients in sets of 5; it converts each of the five
+coefficients c0, c1, c2, c3, and c4 into the value 0, 1, or 2. Then, it sums up the
+coefficients as c0 + 3*c1 + 9*c2 + 27*c3 + 81*c4 and then stores that value as
+the next byte in the byte string.
 
 If the last set of 5 is incomplete (which will happen if N-1 is not a multiple
 of 5), then the higher missing coefficients are assumed to be zero.
